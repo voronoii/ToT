@@ -1,12 +1,20 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import type { Choice, PostRow } from "@/lib/types";
+import type { Choice, CommentRow, PostRow } from "@/lib/types";
 import type { Store } from "./index";
 
 /** 데모 모드용 저장소. 서버 메모리에만 있어 재시작하면 처음 상태로 돌아갑니다. */
 
-type Vote = { choice: Choice; ipHash: string | null };
+type Vote = {
+  choice: Choice;
+  ipHash: string | null;
+  comment?: string | null;
+  commentAuthor?: string | null;
+  commentId?: string;
+  /** 댓글을 지워도 남습니다 (다시 쓸 수 없음). */
+  commentedAt?: string;
+};
 type State = { posts: Map<string, PostRow>; votes: Map<string, Map<string, Vote>> };
 
 const SEED_AUTHOR = "00000000-0000-4000-8000-0000000005ed";
@@ -28,28 +36,38 @@ const ART = {
   fryer: `<rect x="120" y="80" width="160" height="240" rx="45" fill="${WHITE}"/><path d="M120 200h160M175 255h50"/><circle cx="200" cy="140" r="22"/>`,
 };
 
-type Seed = [question: string, a: [string | null, string | null], b: [string | null, string | null], countA: number, countB: number];
+type Seed = [author: string, question: string, a: [string | null, string | null], b: [string | null, string | null], countA: number, countB: number];
 
 const SEEDS: Seed[] = [
-  ["20대 친구 생일 선물, 뭐가 더 좋을까?", ["무선 이어폰", picture(ART.headphones, WHITE)], ["스마트 워치", picture(ART.watch, GREEN)], 128, 97],
-  ["오늘 저녁 혼밥 메뉴 골라줘", ["마라탕", null], ["제육볶음", null], 54, 61],
-  ["첫 해외여행, 어디가 나을까?", ["오사카", picture(ART.gate, GREEN)], ["다낭", picture(ART.beach, GREEN)], 203, 177],
-  ["소개팅 첫 만남 장소는?", ["조용한 카페", null], ["분위기 좋은 식당", null], 88, 143],
-  ["퇴근하고 운동 하나만 한다면", ["헬스", null], ["러닝", null], 71, 66],
-  ["이번 주말에 볼 영화 장르", ["심장 쫄깃한 스릴러", null], ["아무 생각 없는 코미디", null], 39, 52],
-  ["자취방에 하나만 들인다면?", ["로봇청소기", picture(ART.vacuum, WHITE)], ["에어프라이어", picture(ART.fryer, GREEN)], 112, 160],
-  ["면접 날 뭐 입지", ["정장 풀세트", null], ["단정한 셔츠에 슬랙스", null], 47, 119],
-  ["평생 하나만 먹어야 한다면", ["떡볶이", null], ["치킨", null], 301, 412],
+  ["선물 고르는 중", "20대 친구 생일 선물, 뭐가 더 좋을까?", ["무선 이어폰", picture(ART.headphones, WHITE)], ["스마트 워치", picture(ART.watch, GREEN)], 128, 97],
+  ["혼밥 만렙", "오늘 저녁 혼밥 메뉴 골라줘", ["마라탕", null], ["제육볶음", null], 54, 61],
+  ["여행 초보", "첫 해외여행, 어디가 나을까?", ["오사카", picture(ART.gate, GREEN)], ["다낭", picture(ART.beach, GREEN)], 203, 177],
+  ["소개팅 하루 전", "소개팅 첫 만남 장소는?", ["조용한 카페", null], ["분위기 좋은 식당", null], 88, 143],
+  ["퇴근 요정", "퇴근하고 운동 하나만 한다면", ["헬스", null], ["러닝", null], 71, 66],
+  ["주말엔 영화", "이번 주말에 볼 영화 장르", ["심장 쫄깃한 스릴러", null], ["아무 생각 없는 코미디", null], 39, 52],
+  ["자취 3년 차", "자취방에 하나만 들인다면?", ["로봇청소기", picture(ART.vacuum, WHITE)], ["에어프라이어", picture(ART.fryer, GREEN)], 112, 160],
+  ["취준생", "면접 날 뭐 입지", ["정장 풀세트", null], ["단정한 셔츠에 슬랙스", null], 47, 119],
+  ["먹는 게 낙", "평생 하나만 먹어야 한다면", ["떡볶이", null], ["치킨", null], 301, 412],
+];
+
+const SEED_COMMENTS: [postIndex: number, choice: Choice, author: string, comment: string][] = [
+  [0, "a", "출퇴근 두 시간", "이어폰은 매일 써요"],
+  [0, "b", "얼리어답터", "워치는 받아야 써 봄"],
+  [0, "a", "막귀", "소리는 거기서 거기"],
+  [1, "a", "맵부심", "마라탕은 2단계부터"],
+  [1, "b", "한식파", "제육은 실패가 없지"],
+  [8, "b", "1일 1닭", "치킨은 종류가 많음"],
 ];
 
 function seed(): State {
   const posts = new Map<string, PostRow>();
   const now = Date.now();
-  SEEDS.forEach(([question, a, b, countA, countB], index) => {
+  SEEDS.forEach(([author, question, a, b, countA, countB], index) => {
     const id = `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`;
     posts.set(id, {
       id,
       author_id: SEED_AUTHOR,
+      author_name: author,
       question,
       a_text: a[0],
       a_image: a[1],
@@ -57,11 +75,27 @@ function seed(): State {
       b_image: b[1],
       count_a: countA,
       count_b: countB,
-      expires_at: index % 3 === 0 ? new Date(now + (index + 2) * 5 * 60 * 60 * 1000).toISOString() : null,
+      // 모든 고민은 기한이 있습니다. 데모에서는 남은 시간이 고르게 보이도록 2~18시간으로 흩어 둡니다.
+      expires_at: new Date(now + (index + 1) * 2 * 60 * 60 * 1000).toISOString(),
       created_at: new Date(now - index * 37 * 60 * 1000).toISOString(),
     });
   });
-  return { posts, votes: new Map() };
+  // 댓글이 달린 모습을 볼 수 있게 몇 개 넣어 둡니다. [글 번호, 고른 쪽, 이름, 댓글]
+  const votes = new Map<string, Map<string, Vote>>();
+  SEED_COMMENTS.forEach(([postIndex, choice, author, comment], index) => {
+    const id = `00000000-0000-4000-8000-${String(postIndex + 1).padStart(12, "0")}`;
+    const postVotes = votes.get(id) ?? new Map<string, Vote>();
+    votes.set(id, postVotes);
+    postVotes.set(`u:seed-${index}`, {
+      choice,
+      ipHash: null,
+      comment,
+      commentAuthor: author,
+      commentId: randomUUID(),
+      commentedAt: new Date(now - (index + 1) * 11 * 60 * 1000).toISOString(),
+    });
+  });
+  return { posts, votes };
 }
 
 const holder = globalThis as typeof globalThis & { __totDemoState?: State };
@@ -111,11 +145,12 @@ export const memoryStore: Store = {
     return { status: "ok", myChoice: choice, countA: post.count_a, countB: post.count_b };
   },
 
-  async createPost(authorId, input) {
+  async createPost(author, input) {
     const id = randomUUID();
     state().posts.set(id, {
       id,
-      author_id: authorId,
+      author_id: author.id,
+      author_name: author.name,
       question: input.question,
       a_text: input.aText,
       a_image: input.aImage,
@@ -142,5 +177,52 @@ export const memoryStore: Store = {
     posts.delete(id);
     votes.delete(id);
     return true;
+  },
+
+  async listComments(postId, limit) {
+    const rows: CommentRow[] = [];
+    for (const [voterKey, vote] of state().votes.get(postId) ?? []) {
+      if (vote.comment && vote.commentId && vote.commentedAt) {
+        rows.push({
+          comment_id: vote.commentId,
+          comment: vote.comment,
+          comment_author: vote.commentAuthor ?? null,
+          choice: vote.choice,
+          commented_at: vote.commentedAt,
+          voter_key: voterKey,
+        });
+      }
+    }
+    rows.sort((x, y) => y.commented_at.localeCompare(x.commented_at));
+    return { rows: rows.slice(0, limit), total: rows.length };
+  },
+
+  async getCommentStatus(postId, voterKey) {
+    const vote = state().votes.get(postId)?.get(voterKey);
+    return vote ? { used: !!vote.commentedAt, active: !!vote.comment } : null;
+  },
+
+  async addComment(postId, voterKey, authorName, text) {
+    const vote = state().votes.get(postId)?.get(voterKey);
+    if (!vote) return "not_voted";
+    if (vote.commentedAt) return "already";
+    Object.assign(vote, {
+      comment: text,
+      commentAuthor: authorName,
+      commentId: randomUUID(),
+      commentedAt: new Date().toISOString(),
+    });
+    return "ok";
+  },
+
+  async deleteComment(postId, commentId, onlyVoterKey) {
+    for (const [voterKey, vote] of state().votes.get(postId) ?? []) {
+      if (vote.commentId !== commentId || !vote.comment) continue;
+      if (onlyVoterKey && voterKey !== onlyVoterKey) return false;
+      vote.comment = null;
+      vote.commentAuthor = null;
+      return true;
+    }
+    return false;
   },
 };

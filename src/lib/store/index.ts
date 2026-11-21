@@ -1,7 +1,7 @@
 import "server-only";
 
 import { IMAGE_BUCKET, isDemo, SUPABASE_URL } from "@/lib/env";
-import type { Choice, PostRow, PostView, VoteStatus } from "@/lib/types";
+import type { Choice, CommentRow, PostRow, PostView, VoteStatus } from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
 import { memoryStore } from "./memory";
 import { supabaseStore } from "./supabase";
@@ -12,7 +12,7 @@ export type NewPost = {
   aImage: string | null;
   bText: string | null;
   bImage: string | null;
-  expiresAt: string | null;
+  expiresAt: string;
 };
 
 export type VoteResult = { status: VoteStatus; myChoice: Choice | null; countA: number; countB: number };
@@ -23,9 +23,17 @@ export interface Store {
   getPost(id: string): Promise<PostRow | null>;
   getChoices(voterKey: string, postIds: string[]): Promise<Record<string, Choice>>;
   vote(postId: string, choice: Choice, voterKey: string, ipHash: string | null): Promise<VoteResult>;
-  createPost(authorId: string, post: NewPost): Promise<string>;
+  createPost(author: { id: string; name: string }, post: NewPost): Promise<string>;
   listByAuthor(authorId: string): Promise<PostRow[]>;
   deletePost(authorId: string, id: string): Promise<boolean>;
+
+  /** 최근 댓글부터. total은 지워지지 않은 댓글 전체 수. */
+  listComments(postId: string, limit: number): Promise<{ rows: CommentRow[]; total: number }>;
+  /** 내 투표 행의 댓글 상태. 투표한 적이 없으면 null. used는 지운 댓글까지 포함해 "한 번"을 이미 썼는지. */
+  getCommentStatus(postId: string, voterKey: string): Promise<{ used: boolean; active: boolean } | null>;
+  addComment(postId: string, voterKey: string, authorName: string, text: string): Promise<"ok" | "not_voted" | "already">;
+  /** onlyVoterKey를 주면 그 사람이 쓴 댓글일 때만 지웁니다. null이면 누구 댓글이든 지웁니다 (고민 글쓴이용). */
+  deleteComment(postId: string, commentId: string, onlyVoterKey: string | null): Promise<boolean>;
 }
 
 export const store: Store = isDemo ? memoryStore : supabaseStore;
@@ -46,6 +54,7 @@ export function toView(row: PostRow, viewer: Viewer, myChoice: Choice | null): P
   return {
     id: row.id,
     question: row.question,
+    author: row.author_name,
     a: { text: row.a_text, image: imageUrl(row.a_image) },
     b: { text: row.b_text, image: imageUrl(row.b_image) },
     expiresAt: row.expires_at,

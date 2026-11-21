@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import type { PostView } from "@/lib/types";
 import { Board, MysteryBoard } from "./board";
-import { ReelLanding, ReelLoop, ReelQuestion, ReelWindow } from "./reel";
+import { ReelFooter, ReelLanding, ReelLoop, ReelQuestion, ReelWindow } from "./reel";
 import { ShareButton } from "./share-button";
 
 type Phase = "spinning" | "landing" | "landed" | "empty" | "error";
@@ -83,8 +83,8 @@ export function Slot() {
   if (phase === "empty" || phase === "error") {
     return (
       <div className="flex flex-1 flex-col pt-2.5">
-        <ReelWindow>
-          <ReelQuestion text={phase === "empty" ? "돌릴 고민이 다 떨어졌어요" : "고민을 불러오지 못했어요"} />
+        <ReelWindow plain>
+          <ReelQuestion plain text={phase === "empty" ? "돌릴 고민이 다 떨어졌어요" : "고민을 불러오지 못했어요"} />
         </ReelWindow>
         <p className="text-p">
           {phase === "empty"
@@ -117,7 +117,12 @@ export function Slot() {
       <ReelWindow>
         {phase === "spinning" && <ReelLoop items={loopItems} />}
         {phase === "landing" && <ReelLanding key={post?.id} items={strip} onLanded={onLanded} />}
-        {landed && <ReelQuestion text={post.question} />}
+        {landed && (
+          <>
+            <ReelQuestion text={post.question} />
+            <ReelFooter author={post.author} expiresAt={post.expiresAt} closed={post.closed} />
+          </>
+        )}
       </ReelWindow>
 
       <p className="sr-only" aria-live="polite">

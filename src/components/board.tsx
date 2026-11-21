@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { api, percents, remainingLabel } from "@/lib/client";
+import { api, percents } from "@/lib/client";
 import { useLiveCounts, useNow } from "@/lib/live";
 import type { Choice, OptionView, PostView } from "@/lib/types";
+import { Comments } from "./comments";
 
 /** this는 green, that은 dark. 고른 카드는 자기 쪽 색으로 채워집니다. */
 const SIDE = {
@@ -108,66 +109,63 @@ export function Board({ post, onChange }: { post: PostView; onChange: (post: Pos
   }
 
   const result = post.counts ? percents(post.counts) : null;
-  const deadline = expired ? "마감됨" : remainingLabel(post.expiresAt, now);
 
   return (
-    <section aria-label="보기">
-      <div className="grid grid-cols-2 gap-[15px]">
-        {(["a", "b"] as const).map((side, index) => (
-          <OptionCard
-            key={side}
-            side={side}
-            option={post[side]}
-            percent={result && result.total > 0 ? result[side] : null}
-            chosen={post.myChoice === side}
-            disabled={!canVote || busy !== null}
-            busy={busy === side}
-            delay={index * 160}
-            onPick={() => pick(side)}
-          />
-        ))}
-      </div>
+    <>
+      <section aria-label="보기">
+        <div className="grid grid-cols-2 gap-[15px]">
+          {(["a", "b"] as const).map((side, index) => (
+            <OptionCard
+              key={side}
+              side={side}
+              option={post[side]}
+              percent={result && result.total > 0 ? result[side] : null}
+              chosen={post.myChoice === side}
+              disabled={!canVote || busy !== null}
+              busy={busy === side}
+              delay={index * 160}
+              onPick={() => pick(side)}
+            />
+          ))}
+        </div>
 
-      {result ? (
-        <div className="mt-[25px]">
-          <div
-            className="flex h-5 overflow-hidden rounded-md border border-dark bg-white"
-            role="img"
-            aria-label={result.total > 0 ? `this ${result.a}퍼센트, that ${result.b}퍼센트` : "아직 투표 없음"}
-          >
-            {/* 아직 표가 없으면 반반으로 보이지 않게 막대를 비워 둡니다. */}
+        {result ? (
+          <div className="mt-[25px]">
             <div
-              className={`${SIDE.a.bar} transition-[width] duration-700 ease-out`}
-              style={{ width: `${result.total > 0 ? result.a : 0}%` }}
-            />
-            <div
-              className={`${SIDE.b.bar} transition-[width] duration-700 ease-out`}
-              style={{ width: `${result.total > 0 ? result.b : 0}%` }}
-            />
-          </div>
-          <p className="mt-2.5 flex items-center justify-between gap-3 text-p">
-            <span className="flex items-center gap-2">
+              className="flex h-5 overflow-hidden rounded-md border border-dark bg-white"
+              role="img"
+              aria-label={result.total > 0 ? `this ${result.a}퍼센트, that ${result.b}퍼센트` : "아직 투표 없음"}
+            >
+              {/* 아직 표가 없으면 반반으로 보이지 않게 막대를 비워 둡니다. */}
+              <div
+                className={`${SIDE.a.bar} transition-[width] duration-700 ease-out`}
+                style={{ width: `${result.total > 0 ? result.a : 0}%` }}
+              />
+              <div
+                className={`${SIDE.b.bar} transition-[width] duration-700 ease-out`}
+                style={{ width: `${result.total > 0 ? result.b : 0}%` }}
+              />
+            </div>
+            <p className="mt-2.5 flex items-center gap-2 text-p">
               {!expired && <span className="live-dot size-2.5 rounded-full border border-dark bg-green" aria-hidden />}
               {result.total === 0
                 ? "아직 투표가 없어요"
                 : `${result.total.toLocaleString("ko-KR")}명 참여${expired ? "" : ", 실시간 반영 중"}`}
-            </span>
-            {deadline && <span className="shrink-0">{deadline}</span>}
-          </p>
-        </div>
-      ) : (
-        <p className="mt-[25px] flex items-center justify-between gap-3 text-p">
-          <span>끌리는 쪽을 누르면 결과가 보여요</span>
-          {deadline && <span className="shrink-0">{deadline}</span>}
-        </p>
-      )}
+            </p>
+          </div>
+        ) : (
+          <p className="mt-[25px] text-p">{expired ? "마감된 고민이에요" : "끌리는 쪽을 누르면 결과가 보여요"}</p>
+        )}
 
-      {error && (
-        <p role="alert" className="mt-[15px] rounded-md border border-dark bg-grey px-5 py-[15px] text-p">
-          {error}
-        </p>
-      )}
-    </section>
+        {error && (
+          <p role="alert" className="mt-[15px] rounded-md border border-dark bg-grey px-5 py-[15px] text-p">
+            {error}
+          </p>
+        )}
+      </section>
+      {/* 댓글은 결과와 같은 때에 보입니다. 투표하면 새로 불러와 내 상태가 반영됩니다. */}
+      {revealed && <Comments key={post.myChoice ?? "none"} postId={post.id} expired={expired} />}
+    </>
   );
 }
 

@@ -2,7 +2,7 @@ import "server-only";
 
 import { isDemo } from "@/lib/env";
 import type { NewPost } from "@/lib/store";
-import { EXPIRY_OPTIONS, OPTION_TEXT_MAX, QUESTION_MAX } from "@/lib/types";
+import { DEFAULT_EXPIRY, EXPIRY_OPTIONS, OPTION_TEXT_MAX, QUESTION_MAX } from "@/lib/types";
 
 const length = (value: string) => [...value].length;
 
@@ -45,8 +45,11 @@ export function parseNewPost(body: unknown, userId: string): { post: NewPost } |
   if (!aText && !aImage) return { error: "첫 번째 보기에 글이나 사진을 넣으세요." };
   if (!bText && !bImage) return { error: "두 번째 보기에 글이나 사진을 넣으세요." };
 
-  const expiry = EXPIRY_OPTIONS.find((option) => option.value === input.expiresIn) ?? EXPIRY_OPTIONS[0];
-  const expiresAt = expiry.ms > 0 ? new Date(Date.now() + expiry.ms).toISOString() : null;
+  // 기한은 6시간 또는 하루뿐이고, 값이 없거나 이상하면 하루로 둡니다.
+  const chosen = input.expiresIn ?? DEFAULT_EXPIRY;
+  const expiry = EXPIRY_OPTIONS.find((option) => option.value === chosen);
+  if (!expiry) return { error: "투표 기한은 6시간 또는 하루 중에서 고르세요." };
+  const expiresAt = new Date(Date.now() + expiry.ms).toISOString();
 
   return { post: { question, aText, aImage, bText, bImage, expiresAt } };
 }

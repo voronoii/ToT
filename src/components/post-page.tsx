@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { api, ApiError } from "@/lib/client";
 import type { PostView } from "@/lib/types";
 import { Board, MysteryBoard } from "./board";
-import { ReelQuestion, ReelWindow } from "./reel";
+import { ReelFooter, ReelQuestion, ReelWindow } from "./reel";
 import { ShareButton } from "./share-button";
 
 export function PostPage({ id }: { id: string }) {
@@ -40,8 +40,8 @@ export function PostPage({ id }: { id: string }) {
   if (problem) {
     return (
       <div className="flex flex-1 flex-col pt-2.5">
-        <ReelWindow>
-          <ReelQuestion text={problem === "missing" ? "없는 글이거나 삭제된 글이에요" : "글을 불러오지 못했어요"} />
+        <ReelWindow plain>
+          <ReelQuestion plain text={problem === "missing" ? "없는 글이거나 삭제된 글이에요" : "글을 불러오지 못했어요"} />
         </ReelWindow>
         <Link href="/" className="btn btn-primary mt-2.5">
           다른 고민 돌리기
@@ -52,7 +52,14 @@ export function PostPage({ id }: { id: string }) {
 
   return (
     <div className="flex flex-1 flex-col pt-2.5">
-      <ReelWindow>{post && <ReelQuestion text={post.question} />}</ReelWindow>
+      <ReelWindow>
+        {post && (
+          <>
+            <ReelQuestion text={post.question} />
+            <ReelFooter author={post.author} expiresAt={post.expiresAt} closed={post.closed} />
+          </>
+        )}
+      </ReelWindow>
       {post ? <Board post={post} onChange={setPost} /> : <MysteryBoard />}
 
       {post?.mine && post.counts && post.counts.a + post.counts.b === 0 && (

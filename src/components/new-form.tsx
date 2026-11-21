@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "@/lib/client";
 import { shrinkImage, uploadImage } from "@/lib/image";
-import { EXPIRY_OPTIONS, OPTION_TEXT_MAX, QUESTION_MAX, type Choice, type ExpiryValue } from "@/lib/types";
+import {
+  DEFAULT_EXPIRY,
+  EXPIRY_OPTIONS,
+  OPTION_TEXT_MAX,
+  QUESTION_MAX,
+  type Choice,
+  type ExpiryValue,
+} from "@/lib/types";
 import { LoginPrompt } from "./login-prompt";
 import { useMe } from "./me";
 
@@ -118,7 +125,7 @@ export function NewForm() {
   const [question, setQuestion] = useState("");
   const [a, setA] = useState<Draft>(EMPTY);
   const [b, setB] = useState<Draft>(EMPTY);
-  const [expiresIn, setExpiresIn] = useState<ExpiryValue>("none");
+  const [expiresIn, setExpiresIn] = useState<ExpiryValue>(DEFAULT_EXPIRY);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -199,7 +206,7 @@ export function NewForm() {
       </div>
 
       <fieldset className="mt-[30px]">
-        <legend className="field-label">투표 마감</legend>
+        <legend className="field-label">투표 기한</legend>
         <div className="mt-[5px] flex flex-wrap gap-1.5">
           {EXPIRY_OPTIONS.map((option) => (
             <label

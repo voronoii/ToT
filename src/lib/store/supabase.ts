@@ -1,11 +1,12 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
 import { IMAGE_BUCKET } from "@/lib/env";
 import { createAdminClient, createUserClient } from "@/lib/supabase/server";
-import type { Choice, PostRow, VoteStatus } from "@/lib/types";
+import type { Choice, CommentRow, PostRow, VoteStatus } from "@/lib/types";
 import type { Store } from "./index";
 
-const COLUMNS = "id, author_id, question, a_text, a_image, b_text, b_image, count_a, count_b, expires_at, created_at";
+const COLUMNS = "id, author_id, author_name, question, a_text, a_image, b_text, b_image, count_a, count_b, expires_at, created_at";
 
 export const supabaseStore: Store = {
   async feed(voterKey, exclude, limit) {
@@ -53,12 +54,13 @@ export const supabaseStore: Store = {
   },
 
   // 글쓰기와 삭제는 사용자 세션으로 실행해 RLS가 "본인 글만"을 강제하게 합니다.
-  async createPost(authorId, post) {
+  async createPost(author, post) {
     const supabase = await createUserClient();
     const { data, error } = await supabase
       .from("posts")
       .insert({
-        author_id: authorId,
+        author_id: author.id,
+        author_name: author.name,
         question: post.question,
         a_text: post.aText,
         a_image: post.aImage,
@@ -99,5 +101,62 @@ export const supabaseStore: Store = {
       await supabase.storage.from(IMAGE_BUCKET).remove(images);
     }
     return true;
+  },
+
+  // 댓글은 votes 행에 붙어 있고, votes는 서버 키로만 접근합니다.
+  async listComments(postId, limit) {
+    const { data, error, count } = await createAdminClient()
+      .from("votes")
+      .select("comment_id, comment, comment_author, choice, commented_at, voter_key", { count: "exact" })
+      .eq("post_id", postId)
+      .not("comment", "is", null)
+      .order("commented_at", { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    return { rows: (data ?? []) as CommentRow[], total: count ?? 0 };
+  },
+
+  async getCommentStatus(postId, voterKey) {
+    const { data, error } = await createAdminClient()
+      .from("votes")
+      .select("comment, commented_at")
+      .eq("post_id", postId)
+      .eq("voter_key", voterKey)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? { used: data.commented_at !== null, active: data.comment !== null } : null;
+  },
+
+  async addComment(postId, voterKey, authorName, text) {
+    // "아직 댓글을 쓴 적 없는 내 투표 행"만 고치는 한 문장이라, 동시에 두 번 눌러도 한 번만 들어갑니다.
+    const { data, error } = await createAdminClient()
+      .from("votes")
+      .update({
+        comment: text,
+        comment_author: authorName,
+        comment_id: randomUUID(),
+        commented_at: new Date().toISOString(),
+      })
+      .eq("post_id", postId)
+      .eq("voter_key", voterKey)
+      .is("commented_at", null)
+      .select("comment_id");
+    if (error) throw new Error(error.message);
+    if (data && data.length > 0) return "ok";
+    return (await this.getCommentStatus(postId, voterKey)) ? "already" : "not_voted";
+  },
+
+  async deleteComment(postId, commentId, onlyVoterKey) {
+    // 내용만 지우고 commented_at은 남겨, 지운 뒤에 다시 쓸 수 없게 합니다.
+    let query = createAdminClient()
+      .from("votes")
+      .update({ comment: null, comment_author: null })
+      .eq("post_id", postId)
+      .eq("comment_id", commentId)
+      .not("comment", "is", null);
+    if (onlyVoterKey) query = query.eq("voter_key", onlyVoterKey);
+    const { data, error } = await query.select("comment_id");
+    if (error) throw new Error(error.message);
+    return !!data && data.length > 0;
   },
 };
