@@ -27,8 +27,8 @@ export interface Store {
   listByAuthor(authorId: string): Promise<PostRow[]>;
   deletePost(authorId: string, id: string): Promise<boolean>;
 
-  /** 최근 댓글부터. total은 지워지지 않은 댓글 전체 수. */
-  listComments(postId: string, limit: number): Promise<{ rows: CommentRow[]; total: number }>;
+  /** 최근 댓글부터. before를 주면 그 시각보다 먼저 쓴 댓글만. total은 지워지지 않은 댓글 전체 수. */
+  listComments(postId: string, limit: number, before?: string | null): Promise<{ rows: CommentRow[]; total: number }>;
   /** 내 투표 행의 댓글 상태. 투표한 적이 없으면 null. used는 지운 댓글까지 포함해 "한 번"을 이미 썼는지. */
   getCommentStatus(postId: string, voterKey: string): Promise<{ used: boolean; active: boolean } | null>;
   addComment(postId: string, voterKey: string, authorName: string, text: string): Promise<"ok" | "not_voted" | "already">;

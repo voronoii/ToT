@@ -7,7 +7,7 @@ type Context = { params: Promise<{ id: string }> };
 
 const MISSING = "없는 글이거나 삭제된 글입니다.";
 
-export async function GET(_request: Request, { params }: Context) {
+export async function GET(request: Request, { params }: Context) {
   const { id } = await params;
   const viewer = await getViewer();
   const post = isPostId(id) ? await store.getPost(id) : null;
@@ -15,7 +15,10 @@ export async function GET(_request: Request, { params }: Context) {
   if (!(await canSeeComments(post, viewer))) {
     return Response.json({ error: "투표하면 댓글을 볼 수 있습니다." }, { status: 403 });
   }
-  return Response.json(await loadComments(post, viewer));
+  // before: "더 보기"에서 넘기는 기준 시각. 형식이 이상하면 첫 쪽을 줍니다.
+  const raw = new URL(request.url).searchParams.get("before");
+  const before = raw && !Number.isNaN(Date.parse(raw)) ? new Date(raw).toISOString() : null;
+  return Response.json(await loadComments(post, viewer, before));
 }
 
 export async function POST(request: Request, { params }: Context) {

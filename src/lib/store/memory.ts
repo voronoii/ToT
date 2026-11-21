@@ -50,6 +50,33 @@ const SEEDS: Seed[] = [
   ["먹는 게 낙", "평생 하나만 먹어야 한다면", ["떡볶이", null], ["치킨", null], 301, 412],
 ];
 
+const MANY_COMMENTS: [choice: Choice, author: string, comment: string][] = [
+  ["a", "분식집 딸", "떡볶이는 소울푸드"],
+  ["b", "야구 보는 날", "치킨엔 맥주가 있음"],
+  ["a", "밀떡파", "밀떡이면 평생 가능"],
+  ["b", "반반 무많이", "양념 후라이드 반반"],
+  ["a", "쌀떡파", "쌀떡도 인정합니다"],
+  ["b", "닭다리 두 개", "닭다리는 못 참지"],
+  ["a", "순대도 같이", "튀김 찍어 먹으면 끝"],
+  ["b", "퍽퍽살 좋아", "가슴살도 맛있어요"],
+  ["a", "로제 좋아", "로제도 떡볶이니까"],
+  ["b", "간장파", "간장치킨이 진리"],
+  ["a", "국물파", "국물에 밥 비벼야지"],
+  ["b", "치밥", "남은 건 치밥으로"],
+  ["a", "학교 앞", "학교 앞 그 맛"],
+  ["b", "새벽 배달", "새벽엔 역시 치킨"],
+  ["a", "매운 거 최고", "매운 게 당길 때"],
+  ["b", "뼈 있는 걸로", "순살은 치킨이 아님"],
+  ["a", "오뎅 추가", "오뎅 국물은 덤"],
+  ["b", "순살파", "순살이 편하잖아요"],
+  ["a", "즉떡", "즉석떡볶이 볶음밥"],
+  ["b", "파닭", "파닭 드셔 보세요"],
+  ["a", "치즈 추가", "치즈 올리면 끝남"],
+  ["b", "마늘치킨", "마늘 듬뿍이 좋아요"],
+  ["a", "라볶이", "라면사리는 필수"],
+  ["b", "옛날통닭", "시장 통닭 한 마리"],
+];
+
 const SEED_COMMENTS: [postIndex: number, choice: Choice, author: string, comment: string][] = [
   [0, "a", "출퇴근 두 시간", "이어폰은 매일 써요"],
   [0, "b", "얼리어답터", "워치는 받아야 써 봄"],
@@ -57,6 +84,8 @@ const SEED_COMMENTS: [postIndex: number, choice: Choice, author: string, comment
   [1, "a", "맵부심", "마라탕은 2단계부터"],
   [1, "b", "한식파", "제육은 실패가 없지"],
   [8, "b", "1일 1닭", "치킨은 종류가 많음"],
+  // "더 보기"를 볼 수 있게, 마지막 글에는 한 쪽(20개)을 넘기는 댓글을 둡니다.
+  ...MANY_COMMENTS.map(([choice, author, comment]) => [8, choice, author, comment] as [number, Choice, string, string]),
 ];
 
 function seed(): State {
@@ -179,7 +208,7 @@ export const memoryStore: Store = {
     return true;
   },
 
-  async listComments(postId, limit) {
+  async listComments(postId, limit, before) {
     const rows: CommentRow[] = [];
     for (const [voterKey, vote] of state().votes.get(postId) ?? []) {
       if (vote.comment && vote.commentId && vote.commentedAt) {
@@ -194,7 +223,8 @@ export const memoryStore: Store = {
       }
     }
     rows.sort((x, y) => y.commented_at.localeCompare(x.commented_at));
-    return { rows: rows.slice(0, limit), total: rows.length };
+    const page = before ? rows.filter((row) => row.commented_at < before) : rows;
+    return { rows: page.slice(0, limit), total: rows.length };
   },
 
   async getCommentStatus(postId, voterKey) {

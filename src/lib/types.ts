@@ -80,7 +80,10 @@ export type CommentView = {
 export type CommentState = "login" | "not_voted" | "open" | "written" | "deleted";
 
 export type CommentsView = {
+  /** 최근 댓글부터 한 쪽(20개). */
   comments: CommentView[];
+  /** 더 오래된 댓글이 남아 있으면, 다음 쪽을 부를 때 넘길 기준 시각. 없으면 null. */
+  nextBefore: string | null;
   total: number;
   state: CommentState;
   /** 고민 글쓴이는 자기 글에 달린 댓글을 지울 수 있습니다. */

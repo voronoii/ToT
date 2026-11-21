@@ -16,6 +16,7 @@ export function Comments({ postId, expired }: { postId: string; expired: boolean
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const base = `/api/posts/${postId}/comments`;
 
   useEffect(() => {
@@ -49,9 +50,33 @@ export function Comments({ postId, expired }: { postId: string; expired: boolean
     if (!window.confirm(question)) return;
     setError(null);
     try {
-      setData(await api<CommentsView>(`${base}/${comment.id}`, { method: "DELETE" }));
+      const fresh = await api<CommentsView>(`${base}/${comment.id}`, { method: "DELETE" });
+      // 더 보기로 펼쳐 둔 목록과 보던 자리를 유지하려고, 지운 댓글만 빼고 개수·내 상태만 새로 받습니다.
+      setData((current) =>
+        current
+          ? { ...fresh, comments: current.comments.filter((item) => item.id !== comment.id), nextBefore: current.nextBefore }
+          : fresh,
+      );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "댓글을 지우지 못했습니다.");
+    }
+  }
+
+  async function more() {
+    if (!data?.nextBefore || loadingMore) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const next = await api<CommentsView>(`${base}?before=${encodeURIComponent(data.nextBefore)}`);
+      setData((current) => {
+        if (!current) return next;
+        const known = new Set(current.comments.map((item) => item.id));
+        return { ...next, comments: [...current.comments, ...next.comments.filter((item) => !known.has(item.id))] };
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "댓글을 더 불러오지 못했습니다.");
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -144,8 +169,10 @@ export function Comments({ postId, expired }: { postId: string; expired: boolean
         </ul>
       )}
 
-      {data && data.total > data.comments.length && (
-        <p className="mt-2.5 text-p">최근 {data.comments.length}개만 보여요.</p>
+      {data?.nextBefore && (
+        <button type="button" onClick={more} disabled={loadingMore} className="btn btn-secondary mt-5 w-full">
+          {loadingMore ? "불러오는 중" : "더 보기"}
+        </button>
       )}
     </section>
   );

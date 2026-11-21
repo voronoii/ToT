@@ -104,16 +104,22 @@ export const supabaseStore: Store = {
   },
 
   // 댓글은 votes 행에 붙어 있고, votes는 서버 키로만 접근합니다.
-  async listComments(postId, limit) {
-    const { data, error, count } = await createAdminClient()
+  async listComments(postId, limit, before) {
+    const admin = createAdminClient();
+    let page = admin
       .from("votes")
-      .select("comment_id, comment, comment_author, choice, commented_at, voter_key", { count: "exact" })
+      .select("comment_id, comment, comment_author, choice, commented_at, voter_key")
       .eq("post_id", postId)
-      .not("comment", "is", null)
-      .order("commented_at", { ascending: false })
-      .limit(limit);
-    if (error) throw new Error(error.message);
-    return { rows: (data ?? []) as CommentRow[], total: count ?? 0 };
+      .not("comment", "is", null);
+    if (before) page = page.lt("commented_at", before);
+    // 전체 수는 쪽과 상관없이 세어야 해서 따로 묻습니다.
+    const [rows, all] = await Promise.all([
+      page.order("commented_at", { ascending: false }).order("comment_id", { ascending: false }).limit(limit),
+      admin.from("votes").select("comment_id", { count: "exact", head: true }).eq("post_id", postId).not("comment", "is", null),
+    ]);
+    if (rows.error) throw new Error(rows.error.message);
+    if (all.error) throw new Error(all.error.message);
+    return { rows: (rows.data ?? []) as CommentRow[], total: all.count ?? 0 };
   },
 
   async getCommentStatus(postId, voterKey) {

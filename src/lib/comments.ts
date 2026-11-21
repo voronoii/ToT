@@ -4,7 +4,8 @@ import { store } from "@/lib/store";
 import { AUTHOR_NAME_MAX, type CommentState, type CommentsView, type PostRow } from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
 
-const LIST_LIMIT = 50;
+/** 한 번에 보여주는 댓글 수. "더 보기"를 누를 때마다 이만큼씩 이어 붙습니다. */
+export const COMMENT_PAGE_SIZE = 20;
 
 /** DB 제약(40자)에 맞춰 표시 이름을 자릅니다. */
 export const displayName = (name: string) => [...name].slice(0, AUTHOR_NAME_MAX).join("");
@@ -17,11 +18,15 @@ export async function canSeeComments(post: PostRow, viewer: Viewer): Promise<boo
   return post.id in choices;
 }
 
-export async function loadComments(post: PostRow, viewer: Viewer): Promise<CommentsView> {
-  const [{ rows, total }, status] = await Promise.all([
-    store.listComments(post.id, LIST_LIMIT),
+export async function loadComments(post: PostRow, viewer: Viewer, before: string | null = null): Promise<CommentsView> {
+  // 한 개를 더 받아 보고, 남은 댓글이 있는지 판단합니다.
+  const [{ rows: fetched, total }, status] = await Promise.all([
+    store.listComments(post.id, COMMENT_PAGE_SIZE + 1, before),
     viewer.user ? store.getCommentStatus(post.id, viewer.voterKey) : null,
   ]);
+
+  const rows = fetched.slice(0, COMMENT_PAGE_SIZE);
+  const hasMore = fetched.length > COMMENT_PAGE_SIZE;
 
   let state: CommentState;
   if (!viewer.user) state = "login";
@@ -39,6 +44,7 @@ export async function loadComments(post: PostRow, viewer: Viewer): Promise<Comme
       createdAt: row.commented_at,
       mine: row.voter_key === viewer.voterKey,
     })),
+    nextBefore: hasMore ? rows[rows.length - 1].commented_at : null,
     total,
     state,
     canModerate: viewer.user?.id === post.author_id,
