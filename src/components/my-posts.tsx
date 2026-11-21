@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, percents, remainingLabel } from "@/lib/client";
+import { api, optionLabel, percents, remainingLabel } from "@/lib/client";
 import { useNow } from "@/lib/live";
 import type { PostView } from "@/lib/types";
 import { LoginPrompt } from "./login-prompt";
@@ -96,7 +96,7 @@ function PostList({ posts, onRemove }: { posts: PostView[]; onRemove: (post: Pos
                 {ROWS.map((row) => (
                   <div key={row.side} className="flex items-center gap-2.5 text-p">
                     <span className={`hl ${row.label}`}>{row.word}</span>
-                    <span className="min-w-0 flex-1 truncate">{post[row.side].text ?? "사진"}</span>
+                    <span className="min-w-0 flex-1 truncate">{optionLabel(post[row.side])}</span>
                     {result.total > 0 && <span className="font-medium tabular-nums">{result[row.side]}%</span>}
                   </div>
                 ))}

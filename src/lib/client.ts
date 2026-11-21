@@ -39,3 +39,8 @@ export function percents(counts: { a: number; b: number }): { a: number; b: numb
   const a = Math.round((counts.a / total) * 100);
   return { a, b: 100 - a, total };
 }
+
+/** 목록에서 보기를 한 줄로 부를 이름: 글이 없으면 링크 제목, 그것도 없으면 사이트 이름. */
+export function optionLabel(option: { text: string | null; link: { title: string | null; host: string } | null }): string {
+  return option.text ?? option.link?.title ?? option.link?.host ?? "사진";
+}

@@ -6,7 +6,7 @@ import { createAdminClient, createUserClient } from "@/lib/supabase/server";
 import type { Choice, CommentRow, PostRow, VoteStatus } from "@/lib/types";
 import type { Store } from "./index";
 
-const COLUMNS = "id, author_id, author_name, question, a_text, a_image, b_text, b_image, count_a, count_b, expires_at, created_at";
+const COLUMNS = "id, author_id, author_name, question, a_text, a_image, b_text, b_image, a_link, b_link, a_link_meta, b_link_meta, count_a, count_b, expires_at, created_at";
 
 export const supabaseStore: Store = {
   async feed(voterKey, exclude, limit) {
@@ -66,6 +66,10 @@ export const supabaseStore: Store = {
         a_image: post.aImage,
         b_text: post.bText,
         b_image: post.bImage,
+        a_link: post.aLink,
+        b_link: post.bLink,
+        a_link_meta: post.aLinkMeta,
+        b_link_meta: post.bLinkMeta,
         expires_at: post.expiresAt,
       })
       .select("id")

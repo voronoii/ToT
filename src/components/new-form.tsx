@@ -11,13 +11,19 @@ import {
   QUESTION_MAX,
   type Choice,
   type ExpiryValue,
+  type LinkView,
 } from "@/lib/types";
 import { LoginPrompt } from "./login-prompt";
 import { useMe } from "./me";
 
-type Draft = { text: string; photo: Blob | null; preview: string | null };
+type Draft = { text: string; link: string; photo: Blob | null; preview: string | null };
 
-const EMPTY: Draft = { text: "", photo: null, preview: null };
+/** 붙여 넣은 링크가 어떻게 보일지 서버에 물어본 결과. url은 물어본 그 주소입니다. */
+type LinkCheck = { url: string; status: "loading" | "failed" } | { url: string; status: "ready"; view: LinkView };
+
+const LOOKS_LIKE_LINK = /^https?:\/\/\S+\.\S+$/i;
+
+const EMPTY: Draft = { text: "", link: "", photo: null, preview: null };
 const SIDES = {
   a: { word: "this", label: "hl-green", name: "첫 번째 보기" },
   b: { word: "that", label: "hl-black", name: "두 번째 보기" },
@@ -66,6 +72,28 @@ function OptionEditor({
     onChange({ ...draft, photo: null, preview: null });
   }
 
+  // 링크를 붙여 넣으면 잠깐 기다렸다가 미리보기를 받아옵니다.
+  const [check, setCheck] = useState<LinkCheck | null>(null);
+  const url = draft.link.trim();
+  useEffect(() => {
+    if (!LOOKS_LIKE_LINK.test(url)) return;
+    let alive = true;
+    const timer = window.setTimeout(() => {
+      setCheck({ url, status: "loading" });
+      api<{ link: LinkView }>("/api/link-preview", { method: "POST", body: JSON.stringify({ url }) })
+        .then((data) => alive && setCheck({ url, status: "ready", view: data.link }))
+        .catch(() => alive && setCheck({ url, status: "failed" }));
+    }, 500);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [url]);
+  // 주소를 고치는 중이면 예전 결과는 보여주지 않습니다.
+  const current = check && check.url === url ? check : null;
+  const linkView = current?.status === "ready" ? current.view : null;
+  const linkImage = draft.preview ? null : (linkView?.image ?? null);
+
   return (
     <div className="card flex flex-col bg-grey">
       <input
@@ -78,11 +106,12 @@ function OptionEditor({
           event.target.value = "";
         }}
       />
-      {draft.preview && (
+      {(draft.preview || linkImage) && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={draft.preview}
-          alt={`${tone.name} 사진 미리보기`}
+          src={draft.preview ?? linkImage ?? undefined}
+          alt={draft.preview ? `${tone.name} 사진 미리보기` : `${tone.name} 링크의 대표 사진`}
+          referrerPolicy="no-referrer"
           className="aspect-square w-full border-b border-dark bg-white object-cover"
         />
       )}
@@ -94,8 +123,17 @@ function OptionEditor({
               사진 빼기
             </button>
           )}
+          {linkImage && (
+            <button
+              type="button"
+              onClick={() => input.current?.click()}
+              className="rounded-sm text-p underline underline-offset-4"
+            >
+              내 사진
+            </button>
+          )}
         </div>
-        {!draft.preview && (
+        {!draft.preview && !linkImage && (
           <button
             type="button"
             onClick={() => input.current?.click()}
@@ -107,13 +145,46 @@ function OptionEditor({
         )}
         <input
           value={draft.text}
-          onChange={(event) => onChange({ ...draft, text: event.target.value })}
+          onChange={(event) => {
+            const value = event.target.value;
+            // 글 칸에 주소를 붙여 넣으면 링크 칸으로 옮깁니다.
+            if (!draft.link && LOOKS_LIKE_LINK.test(value.trim())) onChange({ ...draft, text: "", link: value.trim() });
+            else onChange({ ...draft, text: value });
+          }}
           maxLength={OPTION_TEXT_MAX}
           placeholder="글로 적기"
           aria-label={tone.name}
           enterKeyHint="next"
           className="field-input px-3 py-3 text-p"
         />
+        <input
+          value={draft.link}
+          onChange={(event) => onChange({ ...draft, link: event.target.value })}
+          maxLength={500}
+          type="url"
+          inputMode="url"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="링크 붙이기"
+          aria-label={`${tone.name} 링크`}
+          enterKeyHint="next"
+          className="field-input px-3 py-3 text-p"
+        />
+        {url !== "" && (
+          <p className="text-p" aria-live="polite">
+            {!LOOKS_LIKE_LINK.test(url) && "http로 시작하는 주소를 넣어 주세요."}
+            {current?.status === "loading" && "미리보기 가져오는 중"}
+            {current?.status === "failed" && "주소를 확인해 주세요."}
+            {linkView && (
+              <>
+                {linkView.title && <span className="line-clamp-2 font-medium">{linkView.title}</span>}
+                <span className="block truncate">{linkView.host}</span>
+                {!linkView.title && !linkView.image && <span className="block">미리보기가 없는 링크예요.</span>}
+              </>
+            )}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -148,14 +219,14 @@ export function NewForm() {
   }
 
   const count = [...question].length;
-  const filled = (draft: Draft) => draft.text.trim() !== "" || draft.photo !== null;
+  const filled = (draft: Draft) => draft.text.trim() !== "" || draft.link.trim() !== "" || draft.photo !== null;
   const complete = question.trim() !== "" && filled(a) && filled(b);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!user || sending) return;
     if (!complete) {
-      setError("질문과 두 보기를 모두 채워 주세요. 보기는 글이나 사진 중 하나만 있어도 됩니다.");
+      setError("질문과 두 보기를 모두 채워 주세요. 보기는 글, 사진, 링크 중 하나만 있어도 됩니다.");
       return;
     }
     setSending(true);
@@ -166,7 +237,16 @@ export function NewForm() {
       );
       const { id } = await api<{ id: string }>("/api/posts", {
         method: "POST",
-        body: JSON.stringify({ question, aText: a.text, aImage, bText: b.text, bImage, expiresIn }),
+        body: JSON.stringify({
+          question,
+          aText: a.text,
+          aImage,
+          aLink: a.link,
+          bText: b.text,
+          bImage,
+          bLink: b.link,
+          expiresIn,
+        }),
       });
       router.push(`/p/${id}`);
     } catch (cause) {

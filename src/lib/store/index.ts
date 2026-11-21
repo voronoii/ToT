@@ -1,7 +1,8 @@
 import "server-only";
 
 import { IMAGE_BUCKET, isDemo, SUPABASE_URL } from "@/lib/env";
-import type { Choice, CommentRow, PostRow, PostView, VoteStatus } from "@/lib/types";
+import { linkHost, looksLikeLink, normalizeLink, readLinkMeta } from "@/lib/link-preview";
+import type { Choice, CommentRow, LinkMeta, LinkView, OptionView, PostRow, PostView, VoteStatus } from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
 import { memoryStore } from "./memory";
 import { supabaseStore } from "./supabase";
@@ -10,8 +11,12 @@ export type NewPost = {
   question: string;
   aText: string | null;
   aImage: string | null;
+  aLink: string | null;
+  aLinkMeta: LinkMeta | null;
   bText: string | null;
   bImage: string | null;
+  bLink: string | null;
+  bLinkMeta: LinkMeta | null;
   expiresAt: string;
 };
 
@@ -47,6 +52,26 @@ export function imageUrl(stored: string | null): string | null {
   return `${SUPABASE_URL}/storage/v1/object/public/${IMAGE_BUCKET}/${stored}`;
 }
 
+export function toLinkView(link: string | null, meta: unknown): LinkView | null {
+  if (!link || !/^https?:\/\//i.test(link)) return null;
+  return { url: link, host: linkHost(link), ...(readLinkMeta(meta) ?? { title: null, image: null }) };
+}
+
+function toOption(text: string | null, image: string | null, link: string | null, meta: unknown): OptionView {
+  // 링크 칸이 생기기 전에 글 칸에 주소만 적어 올린 글도, 누르려다 투표되지 않게 링크로 보여줍니다 (미리보기는 없음).
+  if (!link && text && looksLikeLink(text)) {
+    const moved = normalizeLink(text);
+    if (moved) return { text: null, image: imageUrl(image), link: toLinkView(moved, null) };
+  }
+  return { text, image: imageUrl(image), link: toLinkView(link, meta) };
+}
+
+/** 목록이나 공유 미리보기에서 보기를 한 줄로 부를 이름. */
+export function optionName(row: PostRow, side: Choice): string {
+  const option = side === "a" ? toOption(row.a_text, null, row.a_link, row.a_link_meta) : toOption(row.b_text, null, row.b_link, row.b_link_meta);
+  return option.text ?? option.link?.title ?? option.link?.host ?? "사진";
+}
+
 export function toView(row: PostRow, viewer: Viewer, myChoice: Choice | null): PostView {
   const closed = row.expires_at !== null && new Date(row.expires_at).getTime() <= Date.now();
   const mine = viewer.user?.id === row.author_id;
@@ -55,8 +80,8 @@ export function toView(row: PostRow, viewer: Viewer, myChoice: Choice | null): P
     id: row.id,
     question: row.question,
     author: row.author_name,
-    a: { text: row.a_text, image: imageUrl(row.a_image) },
-    b: { text: row.b_text, image: imageUrl(row.b_image) },
+    a: toOption(row.a_text, row.a_image, row.a_link, row.a_link_meta),
+    b: toOption(row.b_text, row.b_image, row.b_link, row.b_link_meta),
     expiresAt: row.expires_at,
     createdAt: row.created_at,
     closed,

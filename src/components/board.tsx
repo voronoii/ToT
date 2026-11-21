@@ -12,6 +12,15 @@ const SIDE = {
   b: { word: "that", name: "두 번째", label: "hl-black", filled: "bg-dark text-white", percent: "text-green", bar: "bg-dark" },
 } as const;
 
+/** 디자인 시스템의 ↗ 화살표. 바깥으로 나가는 링크에 붙입니다. */
+function ArrowIcon() {
+  return (
+    <svg width="18" height="17" viewBox="0 0 21 20" fill="currentColor" className="shrink-0" aria-hidden>
+      <path d="M0.750252 13.6954C0.0328128 14.1096 -0.213 15.027 0.201214 15.7444C0.615427 16.4619 1.53281 16.7077 2.25025 16.2935L1.50025 14.9944L0.750252 13.6954ZM1.50025 14.9944L2.25025 16.2935L19.5708 6.29347L18.8208 4.99443L18.0708 3.69539L0.750252 13.6954L1.50025 14.9944ZM20.2696 5.38266C20.4841 4.58246 20.0092 3.75995 19.209 3.54554L6.16899 0.0514847C5.36879 -0.162928 4.54629 0.311945 4.33187 1.11215C4.11746 1.91234 4.59233 2.73485 5.39253 2.94926L16.9836 6.05509L13.8778 17.6462C13.6634 18.4464 14.1383 19.2689 14.9385 19.4833C15.7387 19.6977 16.5612 19.2229 16.7756 18.4227L20.2696 5.38266Z" />
+    </svg>
+  );
+}
+
 function optionSize(text: string, hasImage: boolean): string {
   if (hasImage) return "text-p font-medium";
   const length = [...text].length;
@@ -40,41 +49,72 @@ function OptionCard({
   onPick: () => void;
 }) {
   const tone = SIDE[side];
-  const label = option.text ?? `${tone.name} 사진`;
+  const [brokenImage, setBrokenImage] = useState(false);
+  const link = option.link;
+  // 직접 올린 사진이 없으면 링크의 대표 사진을 씁니다. 그 사이트가 사진을 막아 두었으면 사진 없이 보여줍니다.
+  const image = option.image ?? (brokenImage ? null : (link?.image ?? null));
+  const text = option.text ?? link?.title ?? null;
+  const label = text ?? (link ? `${link.host} 링크` : `${tone.name} 사진`);
   // 누르는 즉시 채워서, 서버 응답을 기다리는 동안에도 눌렸다는 걸 알 수 있게 합니다.
   const filled = chosen || busy;
+  const dark = filled && side === "b";
   return (
-    <button
-      type="button"
-      onClick={onPick}
-      disabled={disabled}
-      aria-pressed={chosen}
-      aria-label={percent === null ? `${label} 고르기` : `${label}, ${percent}퍼센트${chosen ? ", 내 선택" : ""}`}
+    <div
       style={{ animationDelay: `${delay}ms` }}
-      className={`card pop-in flex min-h-48 flex-col text-left ${filled ? tone.filled : "bg-grey text-black"} ${
-        disabled ? "" : "cursor-pointer"
+      className={`card pop-in flex min-h-48 flex-col has-[button:focus-visible]:outline-2 has-[button:focus-visible]:outline-offset-3 has-[button:focus-visible]:outline-dark ${
+        filled ? tone.filled : "bg-grey text-black"
       }`}
     >
-      {option.image && (
-        // 사용자가 올린 사진은 크기가 제각각이라 정사각형으로 잘라 보여줍니다.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={option.image}
-          alt={option.text ? "" : label}
-          className="aspect-square w-full border-b border-dark bg-white object-cover"
-        />
-      )}
-      <span className="flex flex-1 flex-col items-start gap-2.5 p-5">
-        <span className="flex items-center gap-2">
-          <span className={`hl text-h4 ${filled ? "hl-white" : tone.label}`}>{tone.word}</span>
-          {chosen && <span className="text-p">내 선택</span>}
-        </span>
-        {option.text && <span className={optionSize(option.text, !!option.image)}>{option.text}</span>}
-        {percent !== null && (
-          <span className={`mt-auto text-h1 leading-none tabular-nums ${filled ? tone.percent : ""}`}>{percent}%</span>
+      {/* 투표는 이 버튼만. 링크는 아래에 따로 두어, 링크를 누르거나 주소를 보려다 투표가 되는 일이 없게 합니다. */}
+      <button
+        type="button"
+        onClick={onPick}
+        disabled={disabled}
+        aria-pressed={chosen}
+        aria-label={percent === null ? `${label} 고르기` : `${label}, ${percent}퍼센트${chosen ? ", 내 선택" : ""}`}
+        className={`flex flex-1 flex-col text-left focus-visible:outline-none ${disabled ? "" : "cursor-pointer"}`}
+      >
+        {image && (
+          // 사진은 크기가 제각각이라 정사각형으로 잘라 보여줍니다.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={image}
+            alt={text ? "" : label}
+            referrerPolicy="no-referrer"
+            onError={() => !option.image && setBrokenImage(true)}
+            className="aspect-square w-full border-b border-dark bg-white object-cover"
+          />
         )}
-      </span>
-    </button>
+        <span className="flex flex-1 flex-col items-start gap-2.5 p-5">
+          <span className="flex items-center gap-2">
+            <span className={`hl text-h4 ${filled ? "hl-white" : tone.label}`}>{tone.word}</span>
+            {chosen && <span className="text-p">내 선택</span>}
+          </span>
+          {option.text ? (
+            <span className={optionSize(option.text, !!image)}>{option.text}</span>
+          ) : (
+            link?.title && <span className="line-clamp-3 text-p font-medium">{link.title}</span>
+          )}
+          {percent !== null && (
+            <span className={`mt-auto text-h1 leading-none tabular-nums ${filled ? tone.percent : ""}`}>{percent}%</span>
+          )}
+        </span>
+      </button>
+      {link && (
+        <a
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer nofollow ugc"
+          aria-label={`${link.host} 링크 새 창으로 열기`}
+          className={`flex items-center justify-between gap-2 border-t px-5 pb-[15px] pt-2.5 text-p focus-visible:outline-offset-[-4px] ${
+            dark ? "on-dark border-white" : "border-dark"
+          }`}
+        >
+          <span className="min-w-0 truncate underline underline-offset-4">{link.host}</span>
+          <ArrowIcon />
+        </a>
+      )}
+    </div>
   );
 }
 

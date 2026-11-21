@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PostPage } from "@/components/post-page";
-import { imageUrl, isPostId, store } from "@/lib/store";
+import { imageUrl, isPostId, optionName, store, toLinkView } from "@/lib/store";
 
 type Props = PageProps<"/p/[id]">;
 
@@ -10,8 +10,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const row = isPostId(id) ? await store.getPost(id) : null;
   if (!row) return { title: "없는 글" };
-  const description = `${row.a_text ?? "사진"} vs ${row.b_text ?? "사진"}, 둘 중 하나를 골라주세요.`;
-  const image = [row.a_image, row.b_image].map(imageUrl).find((url) => url?.startsWith("http"));
+  const description = `${optionName(row, "a")} vs ${optionName(row, "b")}, 둘 중 하나를 골라주세요.`;
+  const linkImages = [toLinkView(row.a_link, row.a_link_meta), toLinkView(row.b_link, row.b_link_meta)].map((link) => link?.image);
+  const image = [...[row.a_image, row.b_image].map(imageUrl), ...linkImages].find((url) => url?.startsWith("http"));
   return {
     title: row.question,
     description,

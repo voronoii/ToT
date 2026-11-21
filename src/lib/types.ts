@@ -11,13 +11,24 @@ export type PostRow = {
   a_image: string | null;
   b_text: string | null;
   b_image: string | null;
+  /** 보기에 붙인 링크와, 글을 올릴 때 받아 둔 미리보기({title, image}). */
+  a_link: string | null;
+  b_link: string | null;
+  a_link_meta: unknown;
+  b_link_meta: unknown;
   count_a: number;
   count_b: number;
   expires_at: string | null;
   created_at: string;
 };
 
-export type OptionView = { text: string | null; image: string | null };
+/** 링크 미리보기: 그 페이지가 스스로 밝힌 제목과 대표 사진. */
+export type LinkMeta = { title: string | null; image: string | null };
+
+/** 화면에 내려주는 링크. host는 링크 주소에서 뽑은 사이트 이름입니다. */
+export type LinkView = { url: string; host: string } & LinkMeta;
+
+export type OptionView = { text: string | null; image: string | null; link: LinkView | null };
 
 /** 화면에 내려주는 포스팅. counts는 투표했거나, 마감됐거나, 내 글일 때만 채워집니다. */
 export type PostView = {
