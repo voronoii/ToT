@@ -159,6 +159,13 @@ body {
     outline-offset: 2px;
   }
 
+  /* 홈 화면 왼쪽 탭: 폭이 좁아 누르기 어렵지 않게, 누를 수 있는 범위를 오른쪽 여백까지 넓힙니다. */
+  .home-tab::after {
+    content: "";
+    position: absolute;
+    inset: -4px -10px -4px 0;
+  }
+
   /* dark 면 위에서는 포커스 외곽선을 green으로 바꿉니다. */
   .on-dark:focus-visible,
   .on-dark :focus-visible {
@@ -202,6 +209,34 @@ body {
   animation: pop-in 0.32s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
 }
 
+/* ── 모아 보기: 로고의 꿈틀이처럼 구불구불 흘러가는 카드 ── */
+@keyframes wiggle-y {
+  from {
+    translate: 0 -5px;
+  }
+  to {
+    translate: 0 5px;
+  }
+}
+
+@keyframes wiggle-tilt {
+  from {
+    rotate: calc(var(--wiggle-turn, 1) * -3deg);
+  }
+  to {
+    rotate: calc(var(--wiggle-turn, 1) * 3deg);
+  }
+}
+
+/* 기울기는 높낮이보다 4분의 1박자 앞서 움직여, 물결의 비탈을 따라 기우는 것처럼 보입니다. */
+.wiggle {
+  animation:
+    wiggle-y var(--wiggle-half, 1400ms) ease-in-out var(--wiggle-delay, 0ms) infinite alternate,
+    wiggle-tilt var(--wiggle-half, 1400ms) ease-in-out calc(var(--wiggle-delay, 0ms) - var(--wiggle-half, 1400ms) / 2)
+      infinite alternate;
+  will-change: translate, rotate;
+}
+
 @keyframes mystery {
   0%,
   100% {
@@ -236,6 +271,7 @@ body {
   .reel-loop,
   .mystery,
   .pop-in,
+  .wiggle,
   .live-dot {
     animation: none;
     filter: none;

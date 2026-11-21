@@ -1,5 +1,5 @@
-import { Slot } from "@/components/slot";
+import { Home } from "@/components/home";
 
-export default function Home() {
-  return <Slot />;
+export default function Page() {
+  return <Home />;
 }
