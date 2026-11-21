@@ -1,8 +1,8 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import type { Choice, CommentRow, PostRow } from "@/lib/types";
-import type { Store } from "./index";
+import { POST_DAILY_LIMIT, POST_LIMIT_WINDOW_MS, type Choice, type CommentRow, type PostRow } from "@/lib/types";
+import { PostLimitError, type Store } from "./index";
 
 /** 데모 모드용 저장소. 서버 메모리에만 있어 재시작하면 처음 상태로 돌아갑니다. */
 
@@ -15,7 +15,12 @@ type Vote = {
   /** 댓글을 지워도 남습니다 (다시 쓸 수 없음). */
   commentedAt?: string;
 };
-type State = { posts: Map<string, PostRow>; votes: Map<string, Map<string, Vote>> };
+type State = {
+  posts: Map<string, PostRow>;
+  votes: Map<string, Map<string, Vote>>;
+  /** 글을 올린 기록. 글을 지워도 남습니다 (하루 3개 제한용). */
+  postLog?: Map<string, number[]>;
+};
 
 const SEED_AUTHOR = "00000000-0000-4000-8000-0000000005ed";
 
@@ -134,6 +139,15 @@ function seed(): State {
 const holder = globalThis as typeof globalThis & { __totDemoState?: State };
 const state = () => (holder.__totDemoState ??= seed());
 
+/** 최근 24시간 안에 이 사람이 글을 올린 시각들 (오래된 것부터). */
+function recentPosts(authorId: string): number[] {
+  const current = state();
+  const log = (current.postLog ??= new Map<string, number[]>());
+  const recent = (log.get(authorId) ?? []).filter((time) => time > Date.now() - POST_LIMIT_WINDOW_MS);
+  log.set(authorId, recent);
+  return recent;
+}
+
 const isOpen = (post: PostRow) => post.expires_at === null || new Date(post.expires_at).getTime() > Date.now();
 
 export const memoryStore: Store = {
@@ -179,6 +193,9 @@ export const memoryStore: Store = {
   },
 
   async createPost(author, input) {
+    const recent = recentPosts(author.id);
+    if (recent.length >= POST_DAILY_LIMIT) throw new PostLimitError();
+    recent.push(Date.now());
     const id = randomUUID();
     state().posts.set(id, {
       id,
@@ -199,6 +216,10 @@ export const memoryStore: Store = {
       created_at: new Date().toISOString(),
     });
     return id;
+  },
+
+  async recentPostTimes(authorId) {
+    return recentPosts(authorId).map((time) => new Date(time).toISOString());
   },
 
   async listByAuthor(authorId) {

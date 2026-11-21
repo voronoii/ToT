@@ -64,6 +64,13 @@ export const OPTION_TEXT_MAX = 40;
 export const AUTHOR_NAME_MAX = 40;
 export const COMMENT_MAX = 15;
 
+/** 한 계정이 최근 24시간 동안 올릴 수 있는 고민 수. DB 트리거(0006_post_limit.sql)와 같은 값이어야 합니다. */
+export const POST_DAILY_LIMIT = 3;
+export const POST_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** 글쓰기 화면에 내려주는 남은 횟수. nextAt은 다 썼을 때 다시 올릴 수 있게 되는 시각. */
+export type PostQuota = { limit: number; remaining: number; nextAt: string | null };
+
 /** DB votes 행에서 댓글에 필요한 부분. */
 export type CommentRow = {
   comment_id: string;

@@ -3,8 +3,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { IMAGE_BUCKET } from "@/lib/env";
 import { createAdminClient, createUserClient } from "@/lib/supabase/server";
-import type { Choice, CommentRow, PostRow, VoteStatus } from "@/lib/types";
-import type { Store } from "./index";
+import { POST_LIMIT_WINDOW_MS, type Choice, type CommentRow, type PostRow, type VoteStatus } from "@/lib/types";
+import { PostLimitError, type Store } from "./index";
 
 const COLUMNS = "id, author_id, author_name, question, a_text, a_image, b_text, b_image, a_link, b_link, a_link_meta, b_link_meta, count_a, count_b, expires_at, created_at";
 
@@ -74,8 +74,21 @@ export const supabaseStore: Store = {
       })
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    // 하루 3개 제한은 DB 트리거가 겁니다 (0006_post_limit.sql).
+    if (error) throw error.message.includes("post_limit") ? new PostLimitError() : new Error(error.message);
     return data.id as string;
+  },
+
+  async recentPostTimes(authorId) {
+    const since = new Date(Date.now() - POST_LIMIT_WINDOW_MS).toISOString();
+    const { data, error } = await createAdminClient()
+      .from("post_log")
+      .select("created_at")
+      .eq("author_id", authorId)
+      .gt("created_at", since)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => row.created_at as string);
   },
 
   async listByAuthor(authorId) {

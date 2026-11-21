@@ -12,6 +12,7 @@ import {
   type Choice,
   type ExpiryValue,
   type LinkView,
+  type PostQuota,
 } from "@/lib/types";
 import { LoginPrompt } from "./login-prompt";
 import { useMe } from "./me";
@@ -190,6 +191,13 @@ function OptionEditor({
   );
 }
 
+/** 다시 올릴 수 있을 때까지 남은 시간을 말로. */
+function waitLabel(nextAt: string | null): string {
+  if (!nextAt) return "조금 뒤에";
+  const minutes = Math.max(1, Math.ceil((new Date(nextAt).getTime() - Date.now()) / 60_000));
+  return minutes < 60 ? `약 ${minutes}분 뒤에` : `약 ${Math.ceil(minutes / 60)}시간 뒤에`;
+}
+
 export function NewForm() {
   const router = useRouter();
   const { ready, user } = useMe();
@@ -207,6 +215,20 @@ export function NewForm() {
   });
   useEffect(() => () => previews.current.forEach((url) => url && URL.revokeObjectURL(url)), []);
 
+  // 오늘 몇 개 더 올릴 수 있는지. 못 받아와도 글쓰기는 막지 않고, 서버가 최종 판정합니다.
+  const [quota, setQuota] = useState<PostQuota | null>(null);
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    api<PostQuota>("/api/me/quota")
+      .then((data) => alive && setQuota(data))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
   if (!ready) return null;
   if (!user) {
     return (
@@ -221,10 +243,11 @@ export function NewForm() {
   const count = [...question].length;
   const filled = (draft: Draft) => draft.text.trim() !== "" || draft.link.trim() !== "" || draft.photo !== null;
   const complete = question.trim() !== "" && filled(a) && filled(b);
+  const spent = quota?.remaining === 0;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!user || sending) return;
+    if (!user || sending || spent) return;
     if (!complete) {
       setError("질문과 두 보기를 모두 채워 주세요. 보기는 글, 사진, 링크 중 하나만 있어도 됩니다.");
       return;
@@ -314,8 +337,15 @@ export function NewForm() {
       )}
 
       <div className="mt-auto pt-10">
-        <button type="submit" disabled={sending} className="btn btn-primary w-full">
-          {sending ? "올리는 중" : "고민 올리기"}
+        {quota && (
+          <p className="mb-[15px] text-p">
+            {spent
+              ? `24시간 동안 올릴 수 있는 ${quota.limit}개를 모두 올렸어요. ${waitLabel(quota.nextAt)} 다시 올릴 수 있습니다.`
+              : `고민은 24시간 동안 ${quota.limit}개까지 올릴 수 있어요. 지금 ${quota.remaining}개 남았습니다.`}
+          </p>
+        )}
+        <button type="submit" disabled={sending || spent} className="btn btn-primary w-full">
+          {spent ? "지금은 올릴 수 없어요" : sending ? "올리는 중" : "고민 올리기"}
         </button>
       </div>
     </form>

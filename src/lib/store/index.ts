@@ -2,7 +2,19 @@ import "server-only";
 
 import { IMAGE_BUCKET, isDemo, SUPABASE_URL } from "@/lib/env";
 import { linkHost, looksLikeLink, normalizeLink, readLinkMeta } from "@/lib/link-preview";
-import type { Choice, CommentRow, LinkMeta, LinkView, OptionView, PostRow, PostView, VoteStatus } from "@/lib/types";
+import {
+  POST_DAILY_LIMIT,
+  POST_LIMIT_WINDOW_MS,
+  type Choice,
+  type CommentRow,
+  type LinkMeta,
+  type LinkView,
+  type OptionView,
+  type PostQuota,
+  type PostRow,
+  type PostView,
+  type VoteStatus,
+} from "@/lib/types";
 import type { Viewer } from "@/lib/viewer";
 import { memoryStore } from "./memory";
 import { supabaseStore } from "./supabase";
@@ -20,6 +32,13 @@ export type NewPost = {
   expiresAt: string;
 };
 
+/** 최근 24시간 동안 올릴 수 있는 횟수를 다 썼을 때. */
+export class PostLimitError extends Error {
+  constructor() {
+    super("post_limit");
+  }
+}
+
 export type VoteResult = { status: VoteStatus; myChoice: Choice | null; countA: number; countB: number };
 
 export interface Store {
@@ -28,7 +47,10 @@ export interface Store {
   getPost(id: string): Promise<PostRow | null>;
   getChoices(voterKey: string, postIds: string[]): Promise<Record<string, Choice>>;
   vote(postId: string, choice: Choice, voterKey: string, ipHash: string | null): Promise<VoteResult>;
+  /** 횟수를 다 썼으면 PostLimitError를 던집니다. */
   createPost(author: { id: string; name: string }, post: NewPost): Promise<string>;
+  /** 최근 24시간 동안 글을 올린 시각들, 오래된 것부터. 지운 글도 포함합니다. */
+  recentPostTimes(authorId: string): Promise<string[]>;
   listByAuthor(authorId: string): Promise<PostRow[]>;
   deletePost(authorId: string, id: string): Promise<boolean>;
 
@@ -50,6 +72,15 @@ export function imageUrl(stored: string | null): string | null {
   if (!stored) return null;
   if (stored.startsWith("data:")) return stored; // 데모 모드
   return `${SUPABASE_URL}/storage/v1/object/public/${IMAGE_BUCKET}/${stored}`;
+}
+
+export async function getPostQuota(authorId: string): Promise<PostQuota> {
+  const times = await store.recentPostTimes(authorId);
+  const remaining = Math.max(0, POST_DAILY_LIMIT - times.length);
+  // 다 썼으면, 한도 안에서 가장 오래된 기록이 24시간을 넘기는 때에 한 자리가 납니다.
+  const oldest = times[times.length - POST_DAILY_LIMIT];
+  const nextAt = remaining === 0 && oldest ? new Date(new Date(oldest).getTime() + POST_LIMIT_WINDOW_MS).toISOString() : null;
+  return { limit: POST_DAILY_LIMIT, remaining, nextAt };
 }
 
 export function toLinkView(link: string | null, meta: unknown): LinkView | null {
