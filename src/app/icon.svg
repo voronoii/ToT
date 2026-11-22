@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- ToT 로고(src/components/logo.tsx)를 탭 크기에서도 읽히게 줄인 것. 주름·윤기는 빼고 꿈틀이 모양과 색만 남깁니다. -->
+  <rect width="64" height="64" rx="14" fill="#ffffff"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- T (this) -->
+    <g stroke="#191a23" stroke-width="7.5">
+      <path d="M17.5 19 q-4.4 5.5 0 11 t0 11 t0 11"/>
+      <path d="M8.5 15.5 q4.5 -3.5 9 0 t9 0"/>
+    </g>
+    <g stroke="#b9ff66" stroke-width="5">
+      <path d="M17.5 19 q-4.4 5.5 0 11 t0 11 t0 11"/>
+      <path d="M8.5 15.5 q4.5 -3.5 9 0 t9 0"/>
+    </g>
+    <!-- o (or) -->
+    <circle cx="32" cy="46.25" r="5.75" stroke="#191a23" stroke-width="7.5"/>
+    <path d="M32 40.5 a5.75 5.75 0 0 1 0 11.5" stroke="#b9ff66" stroke-width="5" stroke-linecap="butt"/>
+    <!-- T (that) -->
+    <g stroke="#191a23" stroke-width="7.5">
+      <path d="M46.5 19 q4.4 5.5 0 11 t0 11 t0 11"/>
+      <path d="M37.5 15.5 q4.5 3.5 9 0 t9 0"/>
+    </g>
+  </g>
+</svg>
