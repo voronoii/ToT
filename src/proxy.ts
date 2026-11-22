@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isDemo, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env";
+import { isDemo, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/env";
 import { VOTER_COOKIE, VOTER_COOKIE_OPTIONS } from "@/lib/cookies";
 
 export async function proxy(request: NextRequest) {
@@ -15,7 +15,7 @@ export async function proxy(request: NextRequest) {
 
   if (!isDemo) {
     // 만료가 가까운 로그인 세션을 갱신해 쿠키에 다시 씁니다.
-    const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const supabase = createServerClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (list) => {

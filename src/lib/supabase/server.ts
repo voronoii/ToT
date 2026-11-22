@@ -3,12 +3,12 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/env";
 
 /** 로그인한 사용자의 세션 쿠키로 동작하는 클라이언트 (RLS 적용). */
 export async function createUserClient(): Promise<SupabaseClient> {
   const cookieStore = await cookies();
-  return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  return createServerClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (list) => {
@@ -24,10 +24,10 @@ export async function createUserClient(): Promise<SupabaseClient> {
 
 let admin: SupabaseClient | null = null;
 
-/** service role 클라이언트. 투표 집계처럼 RLS 밖에서 처리해야 하는 일에만 씁니다. */
+/** secret 키 클라이언트 (RLS를 거치지 않음). 투표 집계처럼 RLS 밖에서 처리해야 하는 일에만 씁니다. */
 export function createAdminClient(): SupabaseClient {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!key) throw new Error("SUPABASE_SERVICE_ROLE_KEY 환경 변수가 없습니다.");
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!key) throw new Error("SUPABASE_SECRET_KEY 환경 변수가 없습니다.");
   admin ??= createClient(SUPABASE_URL, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });

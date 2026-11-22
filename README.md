@@ -29,7 +29,8 @@ npm run dev
 1. [supabase.com](https://supabase.com)에서 프로젝트를 만듭니다.
 2. SQL Editor에 [`supabase/migrations/`](supabase/migrations) 안의 파일을 번호 순서대로(`0001_init.sql`부터 `0006_post_limit.sql`까지) 붙여 넣고 실행합니다.
    테이블, 접근 정책, 투표 함수, 실시간 구독, 사진 저장소가 한 번에 만들어집니다.
-3. `.env.example`을 `.env.local`로 복사하고 Project Settings > API의 값을 채웁니다.
+3. `.env.example`을 `.env.local`로 복사하고 Project Settings > API Keys의 값을 채웁니다.
+   Publishable key(`sb_publishable_...`)와 Secret key(`sb_secret_...`)를 씁니다. 예전 anon · service_role 키는 쓰지 않습니다.
 
 ### 2. 카카오 로그인
 

@@ -54,7 +54,7 @@ export async function getViewer(): Promise<Viewer> {
 
   const headerList = await headers();
   const ip = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() || headerList.get("x-real-ip");
-  const salt = process.env.VOTE_SALT ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "this-or-that";
+  const salt = process.env.VOTE_SALT || process.env.SUPABASE_SECRET_KEY || "this-or-that";
   const ipHash = ip ? createHash("sha256").update(`${salt}:${ip}`).digest("hex").slice(0, 32) : null;
 
   return { voterKey: user ? `u:${user.id}` : `a:${voterId}`, user, ipHash };
