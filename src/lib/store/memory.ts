@@ -20,6 +20,8 @@ type State = {
   votes: Map<string, Map<string, Vote>>;
   /** 글을 올린 기록. 글을 지워도 남습니다 (하루 3개 제한용). */
   postLog?: Map<string, number[]>;
+  /** 직접 정한 닉네임. */
+  nicknames?: Map<string, string>;
 };
 
 const SEED_AUTHOR = "00000000-0000-4000-8000-0000000005ed";
@@ -283,5 +285,14 @@ export const memoryStore: Store = {
       return true;
     }
     return false;
+  },
+
+  async getNickname(userId) {
+    return state().nicknames?.get(userId) ?? null;
+  },
+
+  async setNickname(userId, nickname) {
+    const current = state();
+    (current.nicknames ??= new Map<string, string>()).set(userId, nickname);
   },
 };

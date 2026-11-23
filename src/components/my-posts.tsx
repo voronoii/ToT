@@ -46,8 +46,13 @@ export function MyPosts() {
         <span className="hl hl-green">내가 올린 고민</span>
       </h1>
       <div className="mt-5 flex items-center justify-between text-p">
-        <span>{user.name} 님</span>
-        <form action="/auth/logout" method="post">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="truncate">{user.name} 님</span>
+          <Link href="/nickname?next=%2Fme" className="shrink-0 rounded-sm underline underline-offset-4">
+            닉네임 바꾸기
+          </Link>
+        </span>
+        <form action="/auth/logout" method="post" className="shrink-0">
           <button type="submit" className="rounded-sm underline underline-offset-4">
             로그아웃
           </button>

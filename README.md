@@ -8,6 +8,7 @@
 - 글쓰기는 카카오 로그인 후. 질문 100자, 보기 두 개(글 40자, 사진, 링크 중에서), 투표 기한은 6시간 또는 하루.
 - 한 계정은 24시간 동안 고민을 3개까지 올릴 수 있습니다. 올렸다 지운 글도 횟수에 들어갑니다.
 - 고민카드 아래쪽에 글쓴이와 남은 시간이 보입니다.
+- 처음 로그인하면 닉네임을 정합니다(12자까지, 카카오 이름 그대로 써도 됨). "내 글"에서 언제든 바꿀 수 있고, 이미 올린 글과 댓글의 이름은 바뀌지 않습니다.
 - 보기마다 링크를 하나 붙일 수 있습니다. 글을 올릴 때 서버가 그 링크의 제목과 대표 사진을 받아 카드에 미리보기로 보여주고, 링크는 투표와 따로 눌러 엽니다.
 - 투표한 로그인 사용자는 글마다 댓글을 한 번, 15자까지 남길 수 있습니다. 고칠 수 없고, 지우면 다시 쓸 수 없습니다. 고민 글쓴이는 자기 글의 댓글을 지울 수 있습니다.
 - 글마다 공유 링크(`/p/<id>`)가 있고, 내가 올린 글은 `/me`에서 모아 보고 지울 수 있습니다.
@@ -27,7 +28,7 @@ npm run dev
 ### 1. Supabase
 
 1. [supabase.com](https://supabase.com)에서 프로젝트를 만듭니다.
-2. SQL Editor에 [`supabase/migrations/`](supabase/migrations) 안의 파일을 번호 순서대로(`0001_init.sql`부터 `0006_post_limit.sql`까지) 붙여 넣고 실행합니다.
+2. SQL Editor에 [`supabase/migrations/`](supabase/migrations) 안의 파일을 번호 순서대로(`0001_init.sql`부터 `0007_profiles.sql`까지) 붙여 넣고 실행합니다.
    테이블, 접근 정책, 투표 함수, 실시간 구독, 사진 저장소가 한 번에 만들어집니다.
 3. `.env.example`을 `.env.local`로 복사하고 Project Settings > API Keys의 값을 채웁니다.
    Publishable key(`sb_publishable_...`)와 Secret key(`sb_secret_...`)를 씁니다. 예전 anon · service_role 키는 쓰지 않습니다.

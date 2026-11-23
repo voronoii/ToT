@@ -1,5 +1,5 @@
-import { displayName } from "@/lib/comments";
 import { fetchLinkMeta } from "@/lib/link-preview";
+import { authorName } from "@/lib/profile";
 import { getPostQuota, PostLimitError, store } from "@/lib/store";
 import { POST_DAILY_LIMIT } from "@/lib/types";
 import { parseNewPost } from "@/lib/validate";
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
   try {
     const id = await store.createPost(
-      { id: viewer.user.id, name: displayName(viewer.user.name) },
+      { id: viewer.user.id, name: await authorName(viewer.user) },
       { ...post, aLinkMeta, bLinkMeta },
     );
     return Response.json({ id }, { status: 201 });

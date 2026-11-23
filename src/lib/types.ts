@@ -63,6 +63,8 @@ export const QUESTION_MAX = 100;
 export const OPTION_TEXT_MAX = 40;
 export const AUTHOR_NAME_MAX = 40;
 export const COMMENT_MAX = 15;
+/** 직접 정하는 닉네임의 최대 길이. DB 제약(0007_profiles.sql)과 같아야 합니다. */
+export const NICKNAME_MAX = 12;
 
 /** 한 계정이 최근 24시간 동안 올릴 수 있는 고민 수. DB 트리거(0006_post_limit.sql)와 같은 값이어야 합니다. */
 export const POST_DAILY_LIMIT = 3;

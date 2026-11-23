@@ -61,6 +61,10 @@ export interface Store {
   addComment(postId: string, voterKey: string, authorName: string, text: string): Promise<"ok" | "not_voted" | "already">;
   /** onlyVoterKey를 주면 그 사람이 쓴 댓글일 때만 지웁니다. null이면 누구 댓글이든 지웁니다 (고민 글쓴이용). */
   deleteComment(postId: string, commentId: string, onlyVoterKey: string | null): Promise<boolean>;
+
+  /** 직접 정한 닉네임. 정한 적이 없으면 null (그때는 카카오 닉네임을 씁니다). */
+  getNickname(userId: string): Promise<string | null>;
+  setNickname(userId: string, nickname: string): Promise<void>;
 }
 
 export const store: Store = isDemo ? memoryStore : supabaseStore;

@@ -182,4 +182,17 @@ export const supabaseStore: Store = {
     if (error) throw new Error(error.message);
     return !!data && data.length > 0;
   },
+
+  async getNickname(userId) {
+    const { data, error } = await createAdminClient().from("profiles").select("nickname").eq("user_id", userId).maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data?.nickname as string | undefined) ?? null;
+  },
+
+  async setNickname(userId, nickname) {
+    const { error } = await createAdminClient()
+      .from("profiles")
+      .upsert({ user_id: userId, nickname, updated_at: new Date().toISOString() });
+    if (error) throw new Error(error.message);
+  },
 };

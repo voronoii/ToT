@@ -1,4 +1,5 @@
-import { canSeeComments, displayName, loadComments } from "@/lib/comments";
+import { canSeeComments, loadComments } from "@/lib/comments";
+import { authorName } from "@/lib/profile";
 import { isPostId, store } from "@/lib/store";
 import { COMMENT_MAX } from "@/lib/types";
 import { getViewer } from "@/lib/viewer";
@@ -36,7 +37,7 @@ export async function POST(request: Request, { params }: Context) {
     return Response.json({ error: `댓글은 ${COMMENT_MAX}자까지 쓸 수 있습니다.` }, { status: 400 });
   }
 
-  const result = await store.addComment(id, viewer.voterKey, displayName(viewer.user.name), text);
+  const result = await store.addComment(id, viewer.voterKey, await authorName(viewer.user), text);
   if (result === "not_voted") {
     return Response.json({ error: "투표한 뒤에 댓글을 남길 수 있습니다." }, { status: 409 });
   }

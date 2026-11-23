@@ -2,8 +2,10 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { DEMO_USER_COOKIE } from "@/lib/cookies";
 import { isDemo } from "@/lib/env";
-import { safeNext, siteOrigin } from "@/lib/redirects";
+import { nicknameOrNull } from "@/lib/profile";
+import { nicknamePath, safeNext, siteOrigin } from "@/lib/redirects";
 import { createUserClient } from "@/lib/supabase/server";
+import { DEMO_USER } from "@/lib/viewer";
 
 export async function GET(request: NextRequest) {
   const next = safeNext(request.nextUrl.searchParams.get("next"));
@@ -12,7 +14,8 @@ export async function GET(request: NextRequest) {
   if (isDemo) {
     // 데모 모드: 카카오 없이 체험용 사용자로 로그인합니다.
     (await cookies()).set(DEMO_USER_COOKIE, "1", { httpOnly: true, sameSite: "lax", path: "/" });
-    return NextResponse.redirect(`${origin}${next}`);
+    const named = await nicknameOrNull(DEMO_USER.id);
+    return NextResponse.redirect(`${origin}${named ? next : nicknamePath(next)}`);
   }
 
   const supabase = await createUserClient();
